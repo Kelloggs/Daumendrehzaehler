@@ -1,11 +1,8 @@
 import processing.video.*;
 
 Capture video;
-boolean lastState = false;
-int counter = 0;
-float activeHue = 0.0;
-color activeColor = color(0,0,0);
 PFont f;
+Player player1;
 
 
 void setup() {
@@ -13,6 +10,7 @@ void setup() {
   f = createFont("Arial",16,true);
   video = new Capture(this, width, height);
   video.start();  
+  player1 = new Player();
   noStroke();
   smooth();
 }
@@ -22,23 +20,23 @@ void draw() {
     video.read();
     image(video, 0, 0, width, height);
     video.loadPixels();
-    boolean state = findDot();
-    if(lastState && !state){
-      counter++;
+    boolean visible = findDot(player1);
+    if(player1.isVisible() && !visible){
+      player1.count();
     }
-    lastState = state;
-    drawActiveHue();
-    drawCounter();
+    player1.setVisible(visible);
+    drawActiveHue(player1);
+    drawCounter(player1);
  }
 }
 
-void drawCounter(){
+void drawCounter(Player player){
   textFont(f,156);
   fill(255, 255, 255, 100);
-  text(counter, 300,200);  
+  text(player.getCount(), 300,200);  
 }
 
-boolean findDot() {
+boolean findDot(Player player) {
     int dotX = -1;
     int dotY = -1;
     int index = 0;
@@ -50,7 +48,7 @@ boolean findDot() {
         color pixelColor1 = color(pixelValue1);
         color pixelColor2 = color(pixelValue2);
         color pixelColor = lerpColor(pixelColor1, pixelColor2, 0.5);
-        if(isMatchingColor(pixelColor, activeColor)){
+        if(isMatchingColor(pixelColor, player.getColor())){
           dotY = y;
           dotX = x;          
         }
@@ -67,8 +65,8 @@ boolean findDot() {
     return false;  
 }
 
-void drawActiveHue(){
-  fill(activeColor);
+void drawActiveHue(Player player){
+  fill(player.getColor());
   rect(0, 0, 50, 50);  
   
 }
@@ -76,7 +74,7 @@ void drawActiveHue(){
 void mouseClicked(){
   int pixelValue1 = video.pixels[mouseY*video.width+mouseX];
   color color1 = color(pixelValue1);
-  activeColor = color1;
+  player1.setColor(color1);
 }
 
 boolean isMatchingColor(color color1, color color2){
@@ -85,6 +83,48 @@ boolean isMatchingColor(color color1, color color2){
     abs(red(color1) - red(color2)) < threshold &&
     abs(green(color1) - green(color2)) < threshold &&
     abs(blue(color1) - blue(color2)) < threshold;
+  
+}
+
+class Player{
+ 
+  private color activeColor;
+  private int count;
+  private boolean visible;
+  
+  public void Player(){
+    this.count = 0;
+    this.activeColor = color(0,0,0);
+    this.visible = false;
+  } 
+  
+  public boolean isVisible(){
+    return this.visible;  
+  }
+  
+  public void setVisible(boolean visible){
+    this.visible = visible;
+  }
+  
+  public color getColor(){
+    return this.activeColor; 
+  }
+  
+  public void setColor(color newColor){
+    this.activeColor = newColor; 
+  }
+  
+  public void resetCount(){
+    this.count = 0;  
+  }
+  
+  public int getCount(){
+    return this.count; 
+  }
+  
+  public void count(){
+    this.count++;  
+  }
   
 }
 
