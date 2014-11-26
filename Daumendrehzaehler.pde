@@ -4,6 +4,8 @@ Capture video;
 PFont f;
 Player player1;
 Player player2;
+int threshold = 7;
+int radius = 100;
 
 
 void setup() {
@@ -24,14 +26,15 @@ void draw() {
     image(video, 0, 0, width, height);
     video.loadPixels();
     findDot(player1, player2);
-    
+
     player1.drawTrackingPoint();
     player2.drawTrackingPoint();
-    
+
     drawActiveHue(player1, 0, 0);
     drawActiveHue(player2, 590, 0);
     drawCounter(player1, 100, 80);
     drawCounter(player2, 450, 80);
+	
  }
 }
 
@@ -43,39 +46,43 @@ void drawCounter(Player player, int x, int y){
 }
 
 void findDot(Player player1, Player player2) {
-    int dotX = -1;
-    int dotY = -1;
-    int index = 0;
-    int maxPixels = video.pixels.length - 1;
-    player1.startCheck();
-    player2.startCheck();
-    for (int y = 0; y < video.height; y++) {
-      for (int x = 0; x < video.width; x++) {
-        int pixelValue1 = video.pixels[index];
-        int pixelValue2 = video.pixels[(index == maxPixels) ? index : index + 1];
-        color pixelColor1 = color(pixelValue1);
-        color pixelColor2 = color(pixelValue2);
-        color pixelColor = lerpColor(pixelColor1, pixelColor2, 0.5);
-        if(isMatchingColor(pixelColor, player1.getColor())){
-          player1.setPosition(x, y);
-          player1.check();
-        }
-        if(isMatchingColor(pixelColor, player2.getColor())){
-          player2.setPosition(x, y);
-          player2.check();
-        }
-        index++;
-      }
-    }
-    player1.stopCheck();
-    player2.stopCheck();
+	
+	if(player1.isActive())
+	{
+		boolean beenSeen = false;
+		Position newPos = null;
+	    for (int y = player1.getPosition().y - radius; y < min(player1.getPosition().y + radius, video.height); y++) {
+	      for (int x = player1.getPosition().x - radius; x < min(player1.getPosition().x + radius, video.width); x++) {
+			int index = y * video.width + x;
+	        int pixelValue1 = video.pixels[index];
+	        color pixelColor1 = color(pixelValue1);
+	        if(isMatchingColor(pixelColor1, player1.getColor())){
+				
+				//TODO: validation of multiple candidates -> probabilistic comparison
+			  beenSeen = true;
+			  newPos = new Position(x, y);
+			  break;
+	        }
+			if(newPos != null) {
+				break;
+			}
+	      }
+	    }
+		if(!player1.isVisible() && beenSeen) {
+			player1.count();
+		}
+		player1.setVisible(beenSeen);
+		if(beenSeen)
+		{
+			player1.setPosition(newPos);
+		}
+	}
 }
 
 void drawActiveHue(Player player, int x, int y){
   if(!player.isActive()) return;
   fill(player.getColor());
   rect(x, y, 50, 50);  
-  
 }
 
 void mouseClicked(){
@@ -84,10 +91,10 @@ void mouseClicked(){
   Player player = (mouseButton == RIGHT) ? player2 : player1;
   player.setActive(true);
   player.setColor(color1);
+  player.setPosition(mouseX, mouseY);
 }
 
 boolean isMatchingColor(color color1, color color2){
-  int threshold = 7;
   return 
     abs(red(color1) - red(color2)) < threshold &&
     abs(green(color1) - green(color2)) < threshold &&
@@ -108,7 +115,6 @@ class Position {
     this.x = x;
     this.y = y;
   }
- 
 }
 
 class Player{
@@ -117,8 +123,6 @@ class Player{
   private int count;
   private boolean visible;
   private Position position;
-  private boolean checking;
-  private boolean foundDuringCheck;
   private boolean active;
   
   public Player(){
@@ -126,8 +130,6 @@ class Player{
     this.activeColor = color(0,0,0);
     this.visible = false;
     this.position = new Position(0,0);
-    this.checking = false;
-    this.foundDuringCheck = false;
     this.active = false;
   } 
   
@@ -139,31 +141,12 @@ class Player{
     return this.active;  
   }
   
-  public void startCheck(){
-    if(!this.active) return;
-    this.checking = true;
-    this.foundDuringCheck = false;
-  }
-  
-  public void check(){
-    if(!this.active) return;
-    this.foundDuringCheck = true;  
-  }
-  
-  public void stopCheck(){
-    if(!this.active) return;
-    if(this.visible && !this.foundDuringCheck){
-      this.count();
-    }
-    this.visible = this.foundDuringCheck;  
-  }
-  
   public boolean isVisible(){
     return this.visible;  
   }
   
   public void setVisible(boolean visible){
-    this.visible = visible;
+      this.visible = visible;
   }
   
   public color getColor(){
@@ -190,11 +173,19 @@ class Player{
     this.position.update(x, y);  
   }
   
+  public void setPosition(Position pos){
+    this.position = pos;
+  }
+  
+  public Position getPosition() {
+	  return this.position;
+  }
+  
   public void drawTrackingPoint(){
     if(!this.active) return;
     if(this.visible){
       fill(255, 204, 0, 128);
-      ellipse(this.position.x, this.position.y, 100, 100);
+      ellipse(this.position.x, this.position.y, radius, radius);
     }
   }
   
